@@ -8,138 +8,126 @@ namespace BackpropagationNN
 {
     class NeuralNetwork
     {
-        private double[][] neurons;
-        private double[][] biases;
-        private double[][][] weights;
+        private Layer[] layers;
 
-        private double[][] correctedNeuron;
-        private double[][] correctedBiases;
-        private double[][][] correctedWeights;
+        private int[] nrLayers;
         private Random rnd;
 
         public NeuralNetwork(int[] networkStruc)
         {
-            neurons = new double[networkStruc.Length][];
-            biases = new double[networkStruc.Length][];
-            weights = new double[networkStruc.Length - 1][][];
-
-            correctedNeuron = new double[networkStruc.Length][];
-            correctedBiases = new double[networkStruc.Length][];
-            correctedWeights = new double[networkStruc.Length - 1][][];
-
-            for (int i=0;i<networkStruc.Length;i++)
+            layers = new Layer[networkStruc.Length];
+            nrLayers = new int[networkStruc.Length];
+            for(int i=0;i< networkStruc.Length-1;i++)
             {
-                neurons[i] = new double[networkStruc[i]];
-                correctedNeuron[i] = new double[networkStruc[i]];
-                biases[i] = new double[networkStruc[i]];
-                correctedBiases[i] = new double[networkStruc[i]];
+                nrLayers[i] = networkStruc[i];
+                layers[i] = new Layer(networkStruc[i], networkStruc[i + 1]);
             }
-            //InitBiases();
-            InitWeights();
-
+            nrLayers[networkStruc.Length - 1] = networkStruc[networkStruc.Length - 1];
         }
-
-        private void InitWeights()
+        private double[] Sigmoid(double[] x)
         {
-            for(int i=0;i<neurons.Length-1;i++)
+            double[] outputActi = new double[x.Length];
+            for(int i=0;i<x.Length;i++)
             {
-                weights[i] = new double[neurons[i].Length][];
-                correctedWeights[i] = new double[neurons[i].Length][];
-                for (int j=0;j<weights[i].Length;j++)
-                {
-                    weights[i][j] = new double[neurons[i + 1].Length];
-                    correctedWeights[i][j] = new double[neurons[i + 1].Length];
-                    for (int k=0;k<weights[i][j].Length;k++)
-                    {
-                        weights[i][j][k] = rnd.NextDouble() - 0.5f;
-                    }
-                }
+                outputActi[i] = 1f / (1f + Math.Exp(-x[i]));
             }
+            return outputActi;
         }
         /*
-        private void InitBiases()
-        {
-            for (int i = 0; i < neurons.Length - 1; i++)
-            {
-                biases[i]= rnd.NextDouble() - 0.5f;
-            }
-        }*/
-        private double Sigmoid(double x)
-        {
-            return 1f / (1f + Math.Exp(-x));
-        }
         private double SigmoidDerivative(double x)
         {
             return Sigmoid(x) * (1 - Sigmoid(x));
-        }
-        private double[] Test(double[] input)
+        }*/
+        private double[,] multiplyVectors(double[] one,double[] two)
         {
-            double sumOfLayer=0;
-            for(int i=0;i<neurons[0].Length;i++)
+            double[,] result = new double[one.Length, two.Length];
+            for(int i=0;i<one.Length;i++)
             {
-                neurons[0][i] = input[i];
-            }
-            
-            for(int i=0;i<neurons.Length-1;i++)
-            {
-                for(int j=0;j<neurons[i].Length;j++)
+                for(int j=0;j<two.Length;j++)
                 {
-                    for(int k=0;k<neurons[i].Length;k++)
-                    {
-                        sumOfLayer += neurons[i][k] * weights[i][k][j];
-
-                    }
-                    neurons[i + 1][j] = Sigmoid(sumOfLayer); //+ biases[i];// add activation func before assignment done
-                    correctedNeuron[i + 1][j] = neurons[i + 1][j];
-                    sumOfLayer = 0;
-                }               
+                    result[i, j] = one[i] * two[j];
+                }
             }
-            return neurons[neurons.Length - 1];
+            return result;
         }
-        private void Train(double[][] trainInput,double[][] trainOutput)
+        private double[,] matrixTranspose(double[,] mat)
         {
+            int w = mat.GetLength(0);
+            int h = mat.GetLength(1);
+
+            double[,] result = new double[h, w];
+
+            for (int i = 0; i < w; i++)
+            {
+                for (int j = 0; j < h; j++)
+                {
+                    result[j, i] = mat[i, j];
+                }
+            }
+            return result;
+        }
+        private double[,] multiplyMatrix(double[,] one, double[,] two)
+        {
+            int rA = one.GetLength(0);
+            int cA = one.GetLength(1);
+            int rB = two.GetLength(0);
+            int cB = two.GetLength(1);
+            double temp = 0;
+            double[,] result = new double[rA, cB];
+            for (int i = 0; i < rA; i++)
+            {
+                for (int j = 0; j < cB; j++)
+                {
+                    temp = 0;
+                    for (int k = 0; k < cA; k++)
+                    {
+                        temp += one[i, k] * two[k, j];
+                    }
+                    result[i, j] = temp;
+                }
+            }
+            return result;
+        }
+        private double[,] arrayToMatrix(double[] arr)
+        {
+            double[,] result = new double[arr.Length, 1];
+            for (int i = 0; i < result.Length; i++)
+                result[i, 0] = arr[i];
+            return result;
+        }
+        private void ForwardPass(double[] inputs)
+        {
+            for(int i=0;i<layers[0].inputs.Length;i++)
+            {
+                layers[0].inputs[i] = inputs[i];
+            }
+            for(int i=0;i<layers.Length-1;i++)
+            {
+                layers[i].multiWeightInput();
+                layers[i + 1].inputs = Sigmoid(layers[i].outputs);
+            }
+        }
+        
+        private void BackwardPass(double[][] trainInput,double[][] trainOutput)
+        {
+            
             double biasChange, weightChange,neuronChange;
             for(int i=0;i<trainInput.Length;i++)
             {
-                Test(trainInput[i]);
-                for(int j=0;j<correctedNeuron[correctedNeuron.Length-1].Length;j++)
-                {
-                    correctedNeuron[correctedNeuron.Length - 1][j] = trainOutput[i][j];
-                }
-                for(int j=neurons.Length-1;j>0; j++)
-                {
-                    for(int k=0;k<neurons[i].Length;k++)
-                    {
-                        biasChange = SigmoidDerivative(neurons[j][k]) * (correctedNeuron[j][k] - neurons[j][k]);
-                        correctedBiases[j][k] += biasChange;
-                        for(int l=0;l<neurons[j-1].Length;l++)
-                        {
-                            weightChange = neurons[j - 1][l] * biasChange;
-                            correctedWeights[j - 1][l][k] += weightChange;
+                ForwardPass(trainInput[i]);
+                //train procedure
 
-                            neuronChange = weights[j - 1][l][k] * biasChange;
-                            correctedNeuron[j - 1][l] += neuronChange;
-                        }
-                    }
-                }                       
+                //last layer 
+                layers[layers.Length - 1].biasesCorrection = layers[layers.Length - 1].outputs.Select((elem, index) => elem - trainOutput[i][index]).ToArray();
+                layers[layers.Length-1].weightsCorrection=multiplyVectors(layers[layers.Length - 1].biasesCorrection, layers[layers.Length-2].outputs);
+
+                //previous layer
+                layers[layers.Length-2].biasesCorrection= layers[layers.Length - 1].outputs.Select((elem, index) => elem - trainOutput[i][index]).ToArray();
+                layers[layers.Length - 2].biasesCorrection = multiplyMatrix(arrayToMatrix(layers[layers.Length - 2].biasesCorrection), matrixTranspose(layers[layers.Length - 1].weights));
             }
             //apply training
 
-            for(int i=neurons.Length-1;i>0;i++)
-            {
-                for(int j=0;j<neurons[i].Length;j++)
-                {
-                    biases[i][j] = correctedBiases[i][j];
-                    correctedBiases[i][j] = 0;
-
-                    for(int k=0;k<neurons[i-1].Length;k++)
-                    {
-                        weights[i - 1][k][j] += correctedWeights[i - 1][k][j];
-                        correctedWeights[i - 1][k][j] = 0;
-                    }
-                    correctedNeuron[i][j] = 0;
-                }
-            }
+           
         }
     }
 }
