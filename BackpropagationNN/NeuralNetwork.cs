@@ -33,11 +33,16 @@ namespace BackpropagationNN
             }
             return outputActi;
         }
-        /*
-        private double SigmoidDerivative(double x)
+        
+        private double[] SigmoidDerivative(double[] x)
         {
-            return Sigmoid(x) * (1 - Sigmoid(x));
-        }*/
+            double[] res = new double[x.Length];
+            for(int i=0;i<x.Length;i++)
+            {
+                res[i]= x[i] * (1 - x[i]);
+            }
+            return res;
+        }
         private double[,] multiplyVectors(double[] one,double[] two)
         {
             double[,] result = new double[one.Length, two.Length];
@@ -95,6 +100,16 @@ namespace BackpropagationNN
                 result[i, 0] = arr[i];
             return result;
         }
+        private double[] matrixToArray(double[,] arr)
+        {
+            double[] result = new double[arr.Length];
+            for (int i = 0; i < result.Length; i++)
+                result[i] = arr[i,0];
+            return result;
+        }
+
+
+
         private void ForwardPass(double[] inputs)
         {
             for(int i=0;i<layers[0].inputs.Length;i++)
@@ -110,24 +125,29 @@ namespace BackpropagationNN
         
         private void BackwardPass(double[][] trainInput,double[][] trainOutput)
         {
-            
-            double biasChange, weightChange,neuronChange;
+            // now only for Cross entropy. To do for L2 norm error same procedure.
+            double[,] tmp;
+            double[] sigDer;
             for(int i=0;i<trainInput.Length;i++)
             {
                 ForwardPass(trainInput[i]);
                 //train procedure
 
                 //last layer 
-                layers[layers.Length - 1].biasesCorrection = layers[layers.Length - 1].outputs.Select((elem, index) => elem - trainOutput[i][index]).ToArray();
+                layers[layers.Length - 1].biasesCorrection= layers[layers.Length - 1].outputs.Select((elem, index) => elem - trainOutput[i][index]).ToArray();
                 layers[layers.Length-1].weightsCorrection=multiplyVectors(layers[layers.Length - 1].biasesCorrection, layers[layers.Length-2].outputs);
 
-                //previous layer
-                layers[layers.Length-2].biasesCorrection= layers[layers.Length - 1].outputs.Select((elem, index) => elem - trainOutput[i][index]).ToArray();
-                layers[layers.Length - 2].biasesCorrection = multiplyMatrix(arrayToMatrix(layers[layers.Length - 2].biasesCorrection), matrixTranspose(layers[layers.Length - 1].weights));
-            }
-            //apply training
 
-           
+                //deeper layers
+                for(int j=layers.Length-2;j>=0;j--)
+                {
+                    tmp= multiplyMatrix(matrixTranspose(layers[j + 1].weights), arrayToMatrix(layers[j + 1].biasesCorrection));
+                    sigDer= SigmoidDerivative(Sigmoid(layers[j].sumVector));
+                    layers[j].biasesCorrection= matrixToArray(tmp).Select((elem, index) => elem * sigDer[index]).ToArray();
+                    layers[j].weightsCorrection = multiplyVectors(layers[j].biasesCorrection, layers[j-1].outputs);
+                }
+
+            }
         }
     }
 }

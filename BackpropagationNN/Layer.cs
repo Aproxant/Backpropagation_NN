@@ -12,9 +12,9 @@ namespace BackpropagationNN
         public int nrOutput;
 
         public double[] inputs;
-        public double[] outputs;
-        public double[] sumVector;
-        public double[,] weights;
+        public double[] outputs; //a
+        public double[] sumVector; // z
+        public double[,] weights; //W
         public double[,] weightsCorrection;
         public double[] biases;
         public double[] biasesCorrection;
@@ -40,9 +40,10 @@ namespace BackpropagationNN
                 outputs[i] = 0;
                 for (int j = 0; j < weights.GetLength(1);j++)
                 {                    
-                    outputs[i] = weights[i, j] * inputs[j];                        
+                    outputs[i]+= weights[i, j] * inputs[j];                        
                 }
                 outputs[i] += biases[i];
+                sumVector[i] = outputs[i]; // sprawdzic czy nie override sumVector
                 outputs[i] = Sigmoid(outputs[i]);
             }
         }
